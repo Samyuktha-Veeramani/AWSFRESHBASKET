@@ -4,6 +4,8 @@ from mysql.connector import Error
 from mysql.connector.pooling import MySQLConnectionPool
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+import secrets
+
 
 # Simulated database for products
 products = [
@@ -22,13 +24,14 @@ products = [
 ]
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Secret key for sessions and flash messages
+#app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(16))
+ 
 
 # Database configuration
 db_config = {
-    'host': 'ecomdbs.c362gw2i0ox8.us-east-1.rds.amazonaws.com',
-    'user': 'admin',
-    'password': 'WDWawsdb05',
+    'host': 'freshbasketdb.cxme8a4m4kjr.us-east-1.rds.amazonaws.com',  # Your RDS endpoint
+    'user': 'admin',  # Your DB username
+    'password': 'freshbasket',  # Your DB password
     'database': 'fresh'
 }
 
@@ -55,12 +58,11 @@ def register():
         email = request.form.get('email')
         password = generate_password_hash(request.form.get('password'))
         default_address = request.form.get('default_address')
+        role = request.form.get('role', 'customer')  # Default to 'customer' if no role is selected
 
         if not default_address:
             flash('Default address is required!')
             return redirect(url_for('register'))
-
-        role = request.form.get('role', 'customer')
 
         conn = get_db_connection()
         if not conn:
@@ -71,7 +73,7 @@ def register():
         try:
             cursor.execute(
                 'INSERT INTO users (name, mobile, email, password, address, role) VALUES (%s, %s, %s, %s, %s, %s)',
-                (name, mobile, email, password, default_address, role)
+                (name, mobile, email, password, default_address, role)  # Added role to the query
             )
             conn.commit()
             flash('Thank you for registering! Please log in to continue.', 'success')
@@ -132,34 +134,19 @@ def shop():
 
 @app.route('/cart')
 def view_cart():
+    # Retrieve the cart from the session
     cart_items = session.get('cart', [])
-    print("Cart items:", cart_items)  # Debugging the cart
+    
+    # Debugging: Print cart items to verify session retrieval
+    print("Cart items:", cart_items)  # Debugging line
+    
+    # Calculate total price and total items in the cart
     total_price = sum(item['price'] * item['quantity'] for item in cart_items)
     total_items = sum(item['quantity'] for item in cart_items)
 
+    # Return the cart view page with updated data
     return render_template('cart.html', cart_items=cart_items, total_price=total_price, total_items=total_items)
 
-
-@app.route('/add_to_cart', methods=['POST'])
-def add_to_cart():
-    item_id = request.form.get('item_id')
-    item_name = request.form.get('item_name')
-    item_price = float(request.form.get('item_price'))
-    item_quantity = int(request.form.get('item_quantity'))
-
-    cart = session.get('cart', [])  # Get existing cart or create an empty list
-
-    existing_item = next((item for item in cart if item['id'] == item_id), None)
-
-    if existing_item:
-        existing_item['quantity'] += item_quantity
-    else:
-        cart.append({'id': item_id, 'name': item_name, 'price': item_price, 'quantity': item_quantity})
-
-    session['cart'] = cart  # Set the updated cart back to the session
-    print("Updated cart:", session.get('cart', []))  # Debugging the cart
-
-    return redirect(url_for('view_cart'))
 
 @app.route('/place_order', methods=['POST'])
 def place_order():
