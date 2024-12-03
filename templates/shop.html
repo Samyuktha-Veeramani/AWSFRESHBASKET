@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FreshBasket Shop</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script>
         // Cart logic
         let cart = [];
@@ -29,7 +29,7 @@
                     quantity: quantity
                 });
             }
-
+            localStorage.setItem('cart', JSON.stringify(cart));
             updateCartCount();
             alert(`${quantity} x ${productName} added to your cart.`);
         }
